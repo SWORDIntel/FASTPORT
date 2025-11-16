@@ -84,7 +84,7 @@ impl FastPortScanner {
 
 /// Python module initialization
 #[pymodule]
-fn fastport_core(_py: Python, m &PyModule) -> PyResult<()> {
+fn fastport_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyFastPortScanner>()?;
     m.add_function(wrap_pyfunction!(get_cpu_features, m)?)?;
     m.add_function(wrap_pyfunction!(benchmark_simd, m)?)?;
