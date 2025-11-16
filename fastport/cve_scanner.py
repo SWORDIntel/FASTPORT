@@ -26,7 +26,7 @@ except ImportError:
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from analysis.cve_lookup import CVELookup, CVERecord, ServiceVulnerability
+from .cve_lookup import CVELookup, CVERecord, ServiceVulnerability
 
 
 @dataclass
@@ -81,16 +81,24 @@ class AutoCVEScanner:
             with open(self.port_scan_json, 'r') as f:
                 data = json.load(f)
 
-            # Support both list format and dict format
+            # Support multiple JSON formats for compatibility
             if isinstance(data, list):
+                # Direct list of hosts
                 return data
-            elif isinstance(data, dict) and 'results' in data:
-                return data['results']
-            elif isinstance(data, dict) and 'hosts' in data:
-                return data['hosts']
+            elif isinstance(data, dict):
+                # Try different dict keys in order of preference
+                for key in ['scanned_hosts', 'hosts', 'results']:
+                    if key in data:
+                        return data[key]
+                # If single host object
+                if 'hostname' in data:
+                    return [data]
+                # Unknown format
+                print(f"[!] Unknown JSON format. Expected list or dict with 'scanned_hosts'/'hosts'/'results' key")
+                return []
             else:
-                print(f"[!] Unknown JSON format, trying to extract hosts...")
-                return [data] if 'hostname' in data else []
+                print(f"[!] Unknown JSON format")
+                return []
 
         except Exception as e:
             print(f"[!] Error loading port scan data: {e}")
@@ -320,7 +328,7 @@ class AutoCVEScanner:
                             'high_count': service.vulnerabilities.high_count,
                             'medium_count': service.vulnerabilities.medium_count,
                             'low_count': service.vulnerabilities.low_count,
-                            'cves': [asdict(cve) for cve in service.vulnerabilities.cves[:10]]  # Top 10 CVEs
+                            'cves': [asdict(cve) for cve in service.vulnerabilities.cves]  # ALL CVEs (no limit)
                         }
                     }
                     host_dict['services'].append(service_dict)
@@ -410,14 +418,47 @@ with automatic version detection and CVE database matching.
 
                     md += f"- Critical: {vulns['critical_count']}, High: {vulns['high_count']}, Medium: {vulns['medium_count']}\n\n"
 
-                    # Show top 3 CVEs for this service
+                    # List ALL CVEs for this service (not just top 3)
                     if vulns['cves']:
-                        md += "**Top CVEs:**\n\n"
-                        for cve in vulns['cves'][:3]:
-                            rce_tag = " [RCE]" if cve.get('is_rce') else ""
-                            exploit_tag = " [EXPLOIT AVAILABLE]" if cve.get('exploit_available') else ""
-                            md += f"- **{cve['cve_id']}** ({cve['severity']}, CVSS: {cve['cvss_score']}){rce_tag}{exploit_tag}\n"
-                            md += f"  {cve['description'][:200]}...\n\n"
+                        md += f"**All {len(vulns['cves'])} CVEs:**\n\n"
+
+                        # Group by severity for better readability
+                        critical_cves = [c for c in vulns['cves'] if c.get('severity') == 'CRITICAL']
+                        high_cves = [c for c in vulns['cves'] if c.get('severity') == 'HIGH']
+                        medium_cves = [c for c in vulns['cves'] if c.get('severity') == 'MEDIUM']
+                        low_cves = [c for c in vulns['cves'] if c.get('severity') == 'LOW']
+
+                        # List Critical first
+                        if critical_cves:
+                            md += "**CRITICAL:**\n\n"
+                            for cve in critical_cves:
+                                rce_tag = " 🚨[RCE]" if cve.get('is_rce') else ""
+                                exploit_tag = " ⚡[EXPLOIT]" if cve.get('exploit_available') else ""
+                                md += f"- **{cve['cve_id']}** (CVSS: {cve['cvss_score']}){rce_tag}{exploit_tag}\n"
+                                md += f"  {cve['description'][:150]}...\n\n"
+
+                        # Then High
+                        if high_cves:
+                            md += "**HIGH:**\n\n"
+                            for cve in high_cves:
+                                rce_tag = " 🚨[RCE]" if cve.get('is_rce') else ""
+                                exploit_tag = " ⚡[EXPLOIT]" if cve.get('exploit_available') else ""
+                                md += f"- **{cve['cve_id']}** (CVSS: {cve['cvss_score']}){rce_tag}{exploit_tag}\n"
+                                md += f"  {cve['description'][:150]}...\n\n"
+
+                        # Then Medium (collapsed for readability)
+                        if medium_cves:
+                            md += f"**MEDIUM ({len(medium_cves)}):**\n\n"
+                            for cve in medium_cves:
+                                md += f"- {cve['cve_id']} (CVSS: {cve['cvss_score']})\n"
+
+                        # Then Low (collapsed)
+                        if low_cves:
+                            md += f"\n**LOW ({len(low_cves)}):**\n\n"
+                            for cve in low_cves:
+                                md += f"- {cve['cve_id']} (CVSS: {cve['cvss_score']})\n"
+
+                        md += "\n"
 
                 md += "---\n\n"
 

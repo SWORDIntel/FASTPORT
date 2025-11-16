@@ -1,8 +1,10 @@
 //! Async port scanner with Tokio runtime and SIMD acceleration
+//!
+//! This module provides high-performance asynchronous port scanning
+//! with automatic SIMD optimization selection (AVX2/AVX512/Scalar).
 
 use tokio::net::TcpStream;
 use tokio::time::{timeout, Duration};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use crossbeam::queue::SegQueue;

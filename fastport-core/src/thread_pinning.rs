@@ -124,13 +124,14 @@ fn is_hybrid_architecture() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
         // Check CPUID for hybrid topology
-        if let Ok(cpuid) = raw_cpuid::CpuId::new().get_feature_info() {
+        if let Some(_cpuid) = raw_cpuid::CpuId::new().get_feature_info() {
             // Hybrid bit in CPUID.07H:EDX[bit 15]
+            // For now, use AVX512 as a proxy for modern hybrid architectures
             return std::arch::is_x86_feature_detected!("avx512f");
         }
     }
 
-    // Conservative fallback: assume modern CPUs might be hybrid
+    // Conservative fallback: assume modern CPUs with many cores might be hybrid
     num_cpus::get() >= 12
 }
 

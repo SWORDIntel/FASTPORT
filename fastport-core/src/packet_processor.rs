@@ -1,7 +1,10 @@
 //! Raw packet processing for high-speed scanning
+//!
+//! Provides low-level TCP/IP packet construction and parsing
+//! for SYN scanning and custom packet manipulation.
 
-use std::net::{IpAddr, Ipv4Addr};
-use bytes::{Buf, BufMut, BytesMut};
+use std::net::Ipv4Addr;
+use bytes::BytesMut;
 
 /// TCP packet structure for SYN scanning
 #[repr(C)]

@@ -64,10 +64,5 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
-[profile.release-avx512]
-inherits = "release"
-rustflags = ["-C", "target-feature=+avx512f,+avx512dq,+avx512cd,+avx512bw,+avx512vl"]
-
-[profile.release-avx2]
-inherits = "release"
-rustflags = ["-C", "target-feature=+avx2,+fma"]
+# Note: Use RUSTFLAGS environment variable for target features instead of profile.rustflags
+# Example: RUSTFLAGS='-C target-feature=+avx2' cargo build --release
