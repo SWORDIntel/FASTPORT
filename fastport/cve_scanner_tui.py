@@ -25,8 +25,12 @@ from rich.style import Style
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from analysis.cve_lookup import CVELookup, ServiceVulnerability
-from scanners.auto_cve_scanner import AutoCVEScanner, HostVulnerabilityReport
+from .cve_lookup import CVELookup, ServiceVulnerability
+try:
+    from .cve_scanner import AutoCVEScanner, ServiceWithCVEs as HostVulnerabilityReport
+except ImportError:
+    AutoCVEScanner = None
+    HostVulnerabilityReport = None
 
 
 class CVEScannerTUI:

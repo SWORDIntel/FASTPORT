@@ -32,8 +32,7 @@ except ImportError:
         from PyQt5.QtGui import QFont, QColor, QPalette, QIcon
         PYQT_VERSION = 5
     except ImportError:
-        print("Error: PyQt6 or PyQt5 required. Install with: pip install PyQt6")
-        sys.exit(1)
+        raise ImportError("PyQt6 or PyQt5 required. Install with: pip install PyQt6")
 
 try:
     import fastport_core

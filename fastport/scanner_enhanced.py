@@ -15,10 +15,23 @@ from datetime import datetime
 from dataclasses import dataclass, asdict, field
 import time
 
-from .scanner import (
-    GPUClusterScanner, EnhancedAsset, ServiceDetection,
-    GPU_CLUSTER_PORTS, COMMON_PORTS, TOP_1000_PORTS
-)
+# Optional HDAIS integration for GPU cluster scanning
+try:
+    from .scanner import (
+        GPUClusterScanner, EnhancedAsset, ServiceDetection,
+        GPU_CLUSTER_PORTS, COMMON_PORTS, TOP_1000_PORTS
+    )
+    HDAIS_GPU_AVAILABLE = True
+except ImportError:
+    HDAIS_GPU_AVAILABLE = False
+    # Create dummy base class for standalone mode
+    class GPUClusterScanner:
+        pass
+    EnhancedAsset = dict
+    ServiceDetection = dict
+    GPU_CLUSTER_PORTS = []
+    COMMON_PORTS = []
+    TOP_1000_PORTS = []
 
 try:
     from .anyconnect_tester import AnyConnectTester

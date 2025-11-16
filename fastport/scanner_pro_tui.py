@@ -45,7 +45,23 @@ except ImportError:
     print("Warning: fastport_core not available. Using Python-only mode.")
     print("For maximum performance, build the Rust core: cd fastport-core && maturin develop")
 
-from scanner import AsyncPortScanner, parse_ports
+from .scanner import AsyncPortScanner
+try:
+    from .scanner import parse_ports
+except ImportError:
+    # Define parse_ports if not available
+    def parse_ports(port_spec):
+        """Parse port specification into list of ports"""
+        if isinstance(port_spec, list):
+            return port_spec
+        ports = []
+        for part in str(port_spec).split(','):
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                ports.extend(range(start, end + 1))
+            else:
+                ports.append(int(part))
+        return ports
 
 
 @dataclass

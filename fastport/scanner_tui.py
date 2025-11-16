@@ -30,7 +30,14 @@ except ImportError:
     print("Warning: 'rich' library not found. Install with: pip install rich")
     print("Falling back to basic interface...")
 
-from hdais.scanners.port_scanner import GPUPortScanner, MasscanScanner
+# Optional HDAIS integration - comment out if running standalone
+try:
+    from hdais.scanners.port_scanner import GPUPortScanner, MasscanScanner
+    HAS_HDAIS = True
+except ImportError:
+    HAS_HDAIS = False
+    GPUPortScanner = None
+    MasscanScanner = None
 
 
 class PortScannerTUI:
