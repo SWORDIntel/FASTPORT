@@ -63,3 +63,6 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# Note: Use RUSTFLAGS environment variable for target features instead of profile.rustflags
+# Example: RUSTFLAGS='-C target-feature=+avx2' cargo build --release
