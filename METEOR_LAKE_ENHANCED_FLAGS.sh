@@ -133,8 +133,8 @@ export ISA_METEOR_LAKE="-mhreset -mpku -mptwrite -mrdpid -mpconfig -menqcmd -mpr
 # NEW: Atomic Operations
 export ISA_ATOMIC="-mcmpccxadd -mraoint"
 
-# Prefetch Instructions
-export ISA_PREFETCH="-mprfchw -mprefetchi"
+# Prefetch Instructions (includes 3DNow prefetch - works on Meteor Lake!)
+export ISA_PREFETCH="-mprfchw -mprefetchi -m3dnow"
 
 # Additional Performance Features
 export ISA_PERF_EXTRA="-msahf"  # LAHF/SAHF in 64-bit mode
@@ -279,6 +279,7 @@ export CFLAGS_OPTIMAL="\
 -muintr \
 -mprfchw \
 -mprefetchi \
+-m3dnow \
 -mrdrnd \
 -mrdseed \
 -mfsgsbase \
@@ -295,7 +296,8 @@ export CFLAGS_OPTIMAL="\
 -menqcmd \
 -mcmpccxadd \
 -mraoint \
--mshstk"
+-mshstk \
+-msahf"
 
 # Engineering Sample with AMX
 export CFLAGS_OPTIMAL_AMX="$CFLAGS_OPTIMAL $ISA_AMX"
