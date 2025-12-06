@@ -138,31 +138,50 @@ impl PyFastPortScanner {
 }
 
 /// Get CPU features detected at runtime
+/// Enhanced for Meteor Lake / Dell Latitude 5450 Covert Edition
 #[pyfunction]
 fn get_cpu_features() -> PyResult<String> {
     let variant = get_simd_variant();
     let pcores = get_pcore_count();
+    let is_hybrid = simd_scanner::is_hybrid_cpu();
 
     // Runtime detection results
-    let runtime_avx512 = cfg!(target_arch = "x86_64") &&
-        std::arch::is_x86_feature_detected!("avx512f") &&
-        std::arch::is_x86_feature_detected!("avx512bw");
     let runtime_avx2 = cfg!(target_arch = "x86_64") &&
         std::arch::is_x86_feature_detected!("avx2");
+    let runtime_vnni = cfg!(target_arch = "x86_64") &&
+        std::arch::is_x86_feature_detected!("avxvnni");
+    let runtime_fma = cfg!(target_arch = "x86_64") &&
+        std::arch::is_x86_feature_detected!("fma");
+    let runtime_aes = cfg!(target_arch = "x86_64") &&
+        std::arch::is_x86_feature_detected!("aes");
+    let runtime_sha = cfg!(target_arch = "x86_64") &&
+        std::arch::is_x86_feature_detected!("sha");
 
     Ok(format!(
-        "Active SIMD: {}\n\
-         P-cores: {}\n\
+        "╔══════════════════════════════════════════════════════════════╗\n\
+         ║  FastPort CPU Features - Meteor Lake Optimized              ║\n\
+         ╚══════════════════════════════════════════════════════════════╝\n\
+         Active SIMD: {}\n\
+         P-cores: {} (Hybrid: {})\n\
+         \n\
          Runtime Detection:\n\
-         - AVX-512: {} (compiled: {})\n\
-         - AVX2: {} (compiled: {})\n\
-         Note: Preferring AVX2 for compatibility",
+         - AVX2:     {} (compiled: {})\n\
+         - AVX-VNNI: {} (compiled: {})\n\
+         - FMA:      {}\n\
+         - AES-NI:   {}\n\
+         - SHA-NI:   {}\n\
+         \n\
+         Optimizations: CRC32 checksum, SIMD pattern matching, P-core pinning",
         variant,
         pcores,
-        if runtime_avx512 { "detected" } else { "not available" },
-        if simd_scanner::AVX512_ENABLED { "yes" } else { "no" },
-        if runtime_avx2 { "detected" } else { "not available" },
-        if simd_scanner::AVX2_ENABLED { "yes" } else { "no" }
+        if is_hybrid { "yes" } else { "no" },
+        if runtime_avx2 { "✓" } else { "✗" },
+        if simd_scanner::AVX2_ENABLED { "yes" } else { "no" },
+        if runtime_vnni { "✓" } else { "✗" },
+        if simd_scanner::COMPILE_VNNI_ENABLED { "yes" } else { "no" },
+        if runtime_fma { "✓" } else { "✗" },
+        if runtime_aes { "✓" } else { "✗" },
+        if runtime_sha { "✓" } else { "✗" }
     ))
 }
 
