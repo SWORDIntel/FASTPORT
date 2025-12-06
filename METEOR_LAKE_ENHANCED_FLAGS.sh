@@ -136,6 +136,23 @@ export ISA_ATOMIC="-mcmpccxadd -mraoint"
 # Prefetch Instructions
 export ISA_PREFETCH="-mprfchw -mprefetchi"
 
+# Additional Performance Features
+export ISA_PERF_EXTRA="-msahf"  # LAHF/SAHF in 64-bit mode
+
+# ============================================================================
+# CPU CAPABILITIES (Runtime Features - No Compiler Flags)
+# ============================================================================
+# These are supported by your CPU but controlled at runtime/BIOS level:
+#   - VMX: Virtual Machine Extensions (Intel VT-x)
+#   - EPT: Extended Page Tables
+#   - SMX: Safer Mode Extensions (Intel TXT)
+#   - TME: Total Memory Encryption
+#   - UMIP: User-Mode Instruction Prevention
+#   - OSPKE: OS-enabled Protection Keys (controlled by OS)
+#   - INVPCID: Invalidate PCID (enabled, improves TLB performance)
+#   - User Shadow Stack: Enabled via CET
+# ============================================================================
+
 # Control Flow
 export ISA_CONTROL="-mwaitpkg -muintr -mserialize -mtsxldtrk"
 
@@ -456,6 +473,7 @@ export LDFLAGS_LLD="-fuse-ld=lld"
 # SECTION 10: SECURITY HARDENED FLAGS - ENHANCED
 # ============================================================================
 
+# Security Hardening - Standard
 export CFLAGS_SECURITY="\
 -D_FORTIFY_SOURCE=3 \
 -fstack-protector-strong \
@@ -469,9 +487,20 @@ export CFLAGS_SECURITY="\
 -mindirect-branch=thunk \
 -mfunction-return=thunk \
 -mindirect-branch-register \
+-mindirect-branch-cs-prefix \
 -fharden-compares \
 -fharden-conditional-branches \
 -ftrivial-auto-var-init=zero"
+
+# Security Hardening - Maximum (includes register clearing)
+export CFLAGS_SECURITY_MAX="\
+$CFLAGS_SECURITY \
+-fzero-call-used-regs=used-gpr"
+
+# Security Hardening - Paranoid (clears all registers)
+export CFLAGS_SECURITY_PARANOID="\
+$CFLAGS_SECURITY \
+-fzero-call-used-regs=all"
 
 export LDFLAGS_SECURITY="\
 -Wl,-z,relro \
@@ -659,6 +688,9 @@ export CLANG_FLAGS="\
 -mllvm -unroll-threshold=1000 \
 -mllvm -vectorize-loops \
 -mllvm -vectorize-slp"
+
+# Clang additional ISA flags (not available in GCC)
+export CLANG_ISA_EXTRA="-minvpcid -msahf -msgx"
 
 # Clang GVN optimizations
 export CLANG_GVN="\
