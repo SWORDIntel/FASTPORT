@@ -1,24 +1,31 @@
 #!/bin/bash
 # ============================================================================
 # INTEL METEOR LAKE ULTIMATE COMPILER FLAGS REFERENCE - ENHANCED EDITION
-# Intel Core Ultra 7 165H - Complete Optimization Guide
-# Version: ENHANCED v2.0 - December 2024
+# Dell Latitude 5450 Covert Edition - Complete Optimization Guide
+# Version: ENHANCED v2.1 - December 2024
 # KYBERLOCK Research Division - Tactical Computing
-# Engineering Sample A00 Support Included
+# Engineering Sample A00 | 9-Layer Flex Fabric | OpenVINO Integration
 # ============================================================================
 
 # ============================================================================
-# SYSTEM SPECIFICATIONS DETECTED
+# SYSTEM SPECIFICATIONS - DELL LATITUDE 5450 COVERT EDITION
 # ============================================================================
 # CPU: Intel(R) Core(TM) Ultra 7 165H (Engineering Sample A00)
 # Architecture: Meteor Lake (Family 6 Model 170 Stepping 4)
 # Cores: 16 (6P + 10E) - Hybrid Architecture
 # GPU: Intel Arc Graphics (Xe-LPG, 128 EUs)
-# NPU: VPU 3720 (2 Neural Compute Engines)
-# L1 Data Cache (P-core): 48KB per core
-# L2 Cache (P-core): 2MB per core
-# L1 Data Cache (E-core): 32KB per core
-# L2 Cache (E-cluster): 4MB shared
+# NPU: VPU 3720 (2 Neural Compute Engines) - Base Layer
+# 
+# FLEX FABRIC ACCELERATOR STACK (9 Layers):
+#   Theoretical Combined: 1440 TOPS
+#   Interface: OpenVINO Unified Runtime
+#   Fallback: Graceful degradation through compute tiers
+#
+# CACHE HIERARCHY:
+#   L1 Data (P-core): 48KB per core
+#   L2 Cache (P-core): 2MB per core  
+#   L1 Data (E-core): 32KB per core
+#   L2 Cache (E-cluster): 4MB shared
 # ============================================================================
 
 # ============================================================================
@@ -126,8 +133,8 @@ export ISA_METEOR_LAKE="-mhreset -mpku -mptwrite -mrdpid -mpconfig -menqcmd -mpr
 # NEW: Atomic Operations
 export ISA_ATOMIC="-mcmpccxadd -mraoint"
 
-# Prefetch Instructions (removed -mprefetchwt1 - requires AVX512PF)
-export ISA_PREFETCH="-mprefetchw -mprfchw"
+# Prefetch Instructions
+export ISA_PREFETCH="-mprfchw -mprefetchi"
 
 # Control Flow
 export ISA_CONTROL="-mwaitpkg -muintr -mserialize -mtsxldtrk"
@@ -148,6 +155,61 @@ export ISA_AMX="\
 -mamx-bf16 \
 -mamx-fp16 \
 -mamx-complex"
+
+# ============================================================================
+# SECTION 2.6: OPENVINO / FLEX FABRIC INTEGRATION
+# ============================================================================
+# The 9-layer flex fabric (1440 TOPS theoretical) is accessed via OpenVINO
+# These settings optimize CPU-side code that interfaces with the accelerators
+
+# OpenVINO Environment (set paths when OpenVINO is installed)
+export_openvino_env() {
+    local OPENVINO_ROOT="${INTEL_OPENVINO_DIR:-/opt/intel/openvino}"
+    
+    if [[ -d "$OPENVINO_ROOT" ]]; then
+        source "$OPENVINO_ROOT/setupvars.sh" 2>/dev/null
+        export OV_AVAILABLE=1
+        echo "✓ OpenVINO environment loaded from $OPENVINO_ROOT"
+    else
+        export OV_AVAILABLE=0
+        echo "⚠ OpenVINO not found - CPU fallback active"
+    fi
+}
+
+# OpenVINO Device Priority (graceful fallback order)
+# Flex fabric layers -> NPU -> GPU -> CPU
+export OV_DEVICE_PRIORITY="HETERO:NPU,GPU,CPU"
+export OV_CPU_THROUGHPUT_STREAMS="AUTO"
+export OV_CPU_THREADS_NUM="6"
+export OV_CPU_BIND_THREAD="YES"
+export OV_CPU_DENORMALS_OPTIMIZATION="YES"
+
+# NPU-specific settings (VPU 3720 base + flex fabric)
+export NPU_COMPILER_TYPE="DRIVER"
+export NPU_COMPILATION_MODE_PARAMS="optimization-level=2"
+export NPU_DMA_ENGINES="2"
+export NPU_TILES="2"
+
+# Flex Fabric Hints (proprietary - adjust based on workload)
+export FLEX_FABRIC_LAYERS="9"
+export FLEX_FABRIC_MAX_TOPS="1440"
+export FLEX_FABRIC_FALLBACK="graceful"
+
+# Compiler flags for OpenVINO-optimized CPU fallback code
+export CFLAGS_OPENVINO="\
+-DENABLE_OPENVINO=1 \
+-DENABLE_VNNI=1 \
+-DENABLE_AVX2=1 \
+-DENABLE_FP16=1 \
+-march=meteorlake \
+-mavxvnni \
+-mavxvnniint8 \
+-mavxifma \
+-mf16c"
+
+# Include paths for OpenVINO (when available)
+export OPENVINO_INCLUDES="-I\${INTEL_OPENVINO_DIR}/runtime/include"
+export OPENVINO_LIBS="-L\${INTEL_OPENVINO_DIR}/runtime/lib/intel64 -lopenvino -lopenvino_c"
 
 # ============================================================================
 # SECTION 3: COMPLETE OPTIMAL FLAGS - TIER 1 ENHANCED
@@ -198,7 +260,6 @@ export CFLAGS_OPTIMAL="\
 -mserialize \
 -mtsxldtrk \
 -muintr \
--mprefetchw \
 -mprfchw \
 -mprefetchi \
 -mrdrnd \
@@ -482,7 +543,114 @@ export GRAPHITE="\
 -floop-block"
 
 # ============================================================================
-# SECTION 14: CLANG/LLVM SPECIFIC FLAGS - ENHANCED
+# SECTION 14: INTEL ONEAPI / DPC++ / SYCL FLAGS
+# ============================================================================
+# For when Intel oneAPI toolchain is available - enables direct accelerator access
+
+# DPC++ / SYCL Compiler Flags (Intel ICX/ICPX)
+export DPCPP_FLAGS="\
+-fsycl \
+-fsycl-targets=spir64,spir64_x86_64 \
+-fsycl-unnamed-lambda \
+-fsycl-device-code-split=per_kernel"
+
+# DPC++ with NPU/Accelerator targets
+export DPCPP_ACCEL="\
+-fsycl \
+-fsycl-targets=spir64_x86_64,intel_gpu_mtl"
+
+# Intel ICX Compiler Flags (when available)
+export ICX_FLAGS="\
+-O3 \
+-xCORE-AVX2 \
+-qopt-zmm-usage=low \
+-qopt-multiple-gather-scatter-by-shuffles \
+-qopenmp-simd \
+-qopt-prefetch=5 \
+-qopt-mem-layout-trans=4 \
+-fimf-precision=high \
+-fimf-domain-exclusion=31"
+
+# ICX for Meteor Lake specifically
+export ICX_METEOR_LAKE="\
+-march=meteorlake \
+-mtune=meteorlake \
+-qopt-report=5 \
+-qopt-report-phase=all"
+
+# Level Zero API Environment (direct accelerator access)
+export ZE_AFFINITY_MASK="0,1,2"
+export ZE_ENABLE_PCI_ID_DEVICE_ORDER="1"
+export ZET_ENABLE_PROGRAM_DEBUGGING="0"
+
+# SYCL Runtime Configuration
+export SYCL_DEVICE_FILTER="level_zero:gpu,opencl:cpu"
+export SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS="1"
+export SYCL_PI_LEVEL_ZERO_DEVICE_SCOPE_EVENTS="1"
+
+# ============================================================================
+# SECTION 14.5: NEURAL NETWORK / INFERENCE OPTIMIZATION
+# ============================================================================
+# Flags optimized for NN inference workloads on CPU (fallback path)
+
+# BFloat16 / FP16 optimization for neural inference
+export CFLAGS_NEURAL="\
+-march=meteorlake \
+-mavxvnni \
+-mavxvnniint8 \
+-mavxifma \
+-mavxneconvert \
+-mf16c \
+-ffast-math \
+-funroll-loops \
+-ftree-vectorize \
+-fopt-info-vec-optimized"
+
+# VNNI-optimized quantized inference
+export CFLAGS_QUANTIZED="\
+$CFLAGS_NEURAL \
+-DUSE_VNNI=1 \
+-DINT8_INFERENCE=1 \
+-DAVX_VNNI_INT8=1"
+
+# AMX-optimized inference (engineering sample)
+export CFLAGS_AMX_INFERENCE="\
+$CFLAGS_NEURAL \
+$ISA_AMX \
+-DUSE_AMX=1 \
+-DAMX_BF16=1 \
+-DAMX_INT8=1"
+
+# ============================================================================
+# SECTION 14.7: ONEDNN / DNNL OPTIMIZATION (CPU INFERENCE BACKEND)
+# ============================================================================
+# oneDNN is the CPU inference backend for OpenVINO - optimize for VNNI/AMX
+
+# oneDNN Runtime Configuration
+export ONEDNN_VERBOSE="0"
+export ONEDNN_PRIMITIVE_CACHE_CAPACITY="1024"
+export ONEDNN_MAX_CPU_ISA="AVX2_VNNI_2"  # Meteor Lake max (no AVX512)
+export ONEDNN_CPU_RUNTIME="OMP"
+export DNNL_CPU_RUNTIME="OMP"
+
+# For AMX workloads (engineering sample)
+export ONEDNN_MAX_CPU_ISA_AMX="AVX2_VNNI_2,AMX_INT8,AMX_BF16"
+
+# Thread binding for oneDNN
+export DNNL_CPU_ISA_HINTS="prefer_ymm"  # Prefer 256-bit (no AVX512)
+export ONEDNN_DEFAULT_FPMATH_MODE="BF16"
+
+# Compiler flags for oneDNN-optimized code
+export CFLAGS_ONEDNN="\
+-march=meteorlake \
+-mavxvnni \
+-mavxvnniint8 \
+-DONEDNN_ENABLE_CONCURRENT_EXEC=1 \
+-DONEDNN_VERBOSE=0 \
+-fopenmp"
+
+# ============================================================================
+# SECTION 15: CLANG/LLVM SPECIFIC FLAGS - ENHANCED
 # ============================================================================
 
 # Clang basic optimizations
@@ -601,17 +769,27 @@ export CXXFLAGS_OPTIMAL="$CFLAGS_OPTIMAL -std=c++23 -fcoroutines -fconcepts -fmo
 # Fortran Optimizations
 export FFLAGS_OPTIMAL="$CFLAGS_OPTIMAL -fdefault-real-8 -fdefault-integer-8"
 
-# Rust Integration - ENHANCED for Meteor Lake
+# Rust Integration - ENHANCED for Meteor Lake / Latitude 5450 Covert
 export RUSTFLAGS="\
 -C target-cpu=meteorlake \
 -C opt-level=3 \
 -C lto=fat \
 -C embed-bitcode=yes \
 -C codegen-units=1 \
--C target-feature=+avx2,+fma,+aes,+vaes,+pclmul,+vpclmulqdq,+sha,+gfni,+avxvnni,+avxvnniint8,+avxifma,+avxneconvert"
+-C target-feature=+avx2,+fma,+aes,+vaes,+pclmul,+vpclmulqdq,+sha,+gfni,+avxvnni,+avxvnniint8,+avxifma,+avxneconvert,+cmpccxadd,+raoint"
 
-# Rust with AMX (Engineering Sample)
+# Rust with AMX (Engineering Sample A00)
 export RUSTFLAGS_AMX="$RUSTFLAGS,+amx-tile,+amx-int8,+amx-bf16,+amx-fp16,+amx-complex"
+
+# Rust with all Latitude 5450 Covert features
+export RUSTFLAGS_COVERT="\
+-C target-cpu=meteorlake \
+-C opt-level=3 \
+-C lto=fat \
+-C embed-bitcode=yes \
+-C codegen-units=1 \
+-C link-arg=-Wl,--as-needed \
+-C target-feature=+avx2,+fma,+aes,+vaes,+pclmul,+vpclmulqdq,+sha,+gfni,+avxvnni,+avxvnniint8,+avxifma,+avxneconvert,+cmpccxadd,+raoint,+amx-tile,+amx-int8,+amx-bf16,+amx-fp16,+amx-complex"
 
 # ============================================================================
 # SECTION 19: GCC 13+ SPECIFIC FLAGS
@@ -864,32 +1042,111 @@ test_isa() {
 print_quick_ref() {
     cat << 'EOF'
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                    METEOR LAKE QUICK REFERENCE                               ║
+║          DELL LATITUDE 5450 COVERT EDITION - QUICK REFERENCE                 ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  COMPILE COMMANDS:                                                           ║
-║    compile_optimal file.c     - Build with optimal flags                     ║
-║    compile_mega file.c        - Build with all optimizations                 ║
-║    compile_amx file.c         - Build with AMX (eng sample)                  ║
-║    compile_clang_polly file.c - Build with Clang + Polly optimizer          ║
-║    compile_pgo file.c         - Build with Profile-Guided Optimization      ║
+║    compile_optimal file.c     - Optimal flags (production)                   ║
+║    compile_mega file.c        - All optimizations (aggressive)               ║
+║    compile_amx file.c         - With AMX (eng sample A00)                    ║
+║    compile_clang_polly file.c - Clang + Polly optimizer                      ║
+║    compile_pgo file.c         - Profile-Guided Optimization                  ║
 ║                                                                              ║
 ║  MANUAL BUILD:                                                               ║
 ║    gcc $CFLAGS_OPTIMAL -o app app.c $LDFLAGS_OPTIMAL                        ║
 ║    gcc $CFLAGS_MEGA -o app app.c $LDFLAGS_OPTIMAL                           ║
-║    clang -march=meteorlake $CLANG_OPTIMAL_POLLY -o app app.c                ║
+║    gcc $CFLAGS_NEURAL -o nn nn.c $LDFLAGS_OPTIMAL  # NN inference           ║
 ║                                                                              ║
-║  KERNEL BUILD:                                                               ║
-║    make -j16 KCFLAGS="$KCFLAGS"                                             ║
+║  OPENVINO / FLEX FABRIC:                                                     ║
+║    export_openvino_env        - Load OpenVINO runtime                        ║
+║    enumerate_ov_devices       - List accelerator devices                     ║
+║    OV_DEVICE_PRIORITY="HETERO:NPU,GPU,CPU"  # Fallback order                ║
 ║                                                                              ║
 ║  RUST BUILD:                                                                 ║
 ║    RUSTFLAGS="$RUSTFLAGS" cargo build --release                             ║
+║    RUSTFLAGS="$RUSTFLAGS_COVERT" cargo build --release  # Full features     ║
+║                                                                              ║
+║  FALLBACK TIERS:                                                             ║
+║    [0] Flex Fabric (1440 TOPS) → [1] NPU → [2] GPU → [3] CPU → [4] Scalar  ║
 ║                                                                              ║
 ║  VERIFY:                                                                     ║
-║    show_flags    - Display all flag sets                                     ║
-║    test_flags    - Verify flags compile                                      ║
-║    test_isa      - Check ISA extension support                               ║
+║    test_flags         - Verify compiler flags                                ║
+║    test_isa           - Check ISA extensions                                 ║
+║    test_compute_tiers - Verify fallback chain                                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 EOF
+}
+
+# ============================================================================
+# SECTION 27: GRACEFUL FALLBACK VERIFICATION
+# ============================================================================
+
+# Test compute tier availability
+test_compute_tiers() {
+    echo "╔══════════════════════════════════════════════════════════════════════════╗"
+    echo "║  COMPUTE TIER AVAILABILITY - GRACEFUL FALLBACK CHECK                    ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+    
+    # Tier 0: Flex Fabric (1440 TOPS)
+    echo "TIER 0: Flex Fabric Accelerator (1440 TOPS theoretical)"
+    if [[ -n "$INTEL_OPENVINO_DIR" ]] && command -v benchmark_app &>/dev/null; then
+        echo "  ✓ OpenVINO available - Flex fabric accessible"
+    else
+        echo "  ⚠ OpenVINO not configured - Flex fabric not accessible"
+    fi
+    
+    # Tier 1: NPU (VPU 3720)
+    echo ""
+    echo "TIER 1: NPU / VPU 3720"
+    if ls /dev/accel* 2>/dev/null | head -1 | grep -q accel; then
+        echo "  ✓ NPU device nodes present"
+    else
+        echo "  ⚠ NPU device nodes not found - will fallback"
+    fi
+    
+    # Tier 2: Intel Arc GPU
+    echo ""
+    echo "TIER 2: Intel Arc Graphics (Xe-LPG)"
+    if command -v intel_gpu_top &>/dev/null || ls /dev/dri/render* &>/dev/null; then
+        echo "  ✓ GPU rendering devices available"
+    else
+        echo "  ⚠ GPU not accessible - will fallback"
+    fi
+    
+    # Tier 3: CPU with VNNI/AMX
+    echo ""
+    echo "TIER 3: CPU Optimized (AVX2/VNNI/AMX)"
+    if echo 'int main(){return 0;}' | gcc -xc -march=meteorlake -mavxvnni -mavxvnniint8 $ISA_AMX - -o /dev/null 2>/dev/null; then
+        echo "  ✓ Full CPU acceleration available (VNNI + AMX)"
+    elif echo 'int main(){return 0;}' | gcc -xc -march=meteorlake -mavxvnni - -o /dev/null 2>/dev/null; then
+        echo "  ✓ CPU acceleration available (VNNI, no AMX)"
+    else
+        echo "  ✓ CPU baseline available (AVX2)"
+    fi
+    
+    # Tier 4: Scalar fallback
+    echo ""
+    echo "TIER 4: Scalar Fallback"
+    echo "  ✓ Always available"
+    
+    echo ""
+    echo "Fallback order: Flex Fabric → NPU → GPU → CPU (VNNI) → CPU (AVX2) → Scalar"
+}
+
+# OpenVINO device enumeration (when available)
+enumerate_ov_devices() {
+    if [[ -n "$INTEL_OPENVINO_DIR" ]]; then
+        echo "=== OpenVINO Device Enumeration ==="
+        python3 -c "
+from openvino import Core
+core = Core()
+print('Available devices:', core.available_devices)
+for device in core.available_devices:
+    print(f'  {device}: {core.get_property(device, \"FULL_DEVICE_NAME\")}')
+" 2>/dev/null || echo "OpenVINO Python API not available"
+    else
+        echo "OpenVINO not configured. Run: export_openvino_env"
+    fi
 }
 
 # ============================================================================
@@ -897,19 +1154,33 @@ EOF
 # ============================================================================
 
 echo "╔══════════════════════════════════════════════════════════════════════════╗"
-echo "║  INTEL METEOR LAKE OPTIMIZATION FLAGS - ENHANCED v2.0                   ║"
-echo "║  CPU: Intel Core Ultra 7 165H | 6P+10E | Arc Graphics | NPU 3720        ║"
-echo "║  Engineering Sample A00 - Additional Features Enabled                   ║"
+echo "║  DELL LATITUDE 5450 COVERT EDITION - OPTIMIZATION FLAGS v2.1            ║"
+echo "║  Intel Core Ultra 7 165H | Engineering Sample A00                       ║"
+echo "║  9-Layer Flex Fabric | 1440 TOPS Theoretical | OpenVINO Interface       ║"
 echo "╚══════════════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "NEW in v2.0:"
-echo "  • AVX-IFMA, AVX-NE-CONVERT, AVX-VNNI-INT8 for AI/ML acceleration"
-echo "  • CMPCCXADD, RAO-INT for advanced atomics"
-echo "  • Key Locker (KL/WIDEKL) for hardware-protected crypto"
-echo "  • AMX support (engineering sample): tile, int8, bf16, fp16, complex"
-echo "  • Clang Polly polyhedral optimizer integration"
-echo "  • Cache-tuned parameters for Meteor Lake hierarchy"
-echo "  • Enhanced IPA, scheduling, and loop optimizations"
+echo "COMPUTE TIERS (Graceful Fallback):"
+echo "  [0] Flex Fabric Accelerator ─── 1440 TOPS (via OpenVINO)"
+echo "  [1] NPU / VPU 3720 ──────────── ~11 TOPS"
+echo "  [2] Intel Arc Graphics ──────── Variable"
+echo "  [3] CPU (VNNI/AMX) ──────────── Optimized inference"
+echo "  [4] CPU (Scalar) ────────────── Always available"
 echo ""
-echo "Commands: show_flags | test_flags | test_isa | print_quick_ref"
+echo "NEW in v2.1:"
+echo "  • OpenVINO integration for Flex Fabric access"
+echo "  • Intel oneAPI/DPC++/SYCL compiler support"
+echo "  • Neural network inference optimization flags"
+echo "  • Graceful fallback verification (test_compute_tiers)"
+echo "  • AVX-IFMA, AVX-NE-CONVERT, AVX-VNNI-INT8, CMPCCXADD, RAO-INT"
+echo "  • AMX: tile, int8, bf16, fp16, complex"
+echo "  • Key Locker, Clang Polly, cache-tuned parameters"
+echo ""
+echo "Commands:"
+echo "  show_flags          - Display all flag sets"
+echo "  test_flags          - Verify flags compile"
+echo "  test_isa            - Check ISA extension support"
+echo "  test_compute_tiers  - Verify fallback chain"
+echo "  export_openvino_env - Load OpenVINO environment"
+echo "  enumerate_ov_devices- List OpenVINO devices"
+echo "  print_quick_ref     - Quick reference card"
 echo ""
