@@ -120,19 +120,41 @@ pub struct CpuTopology {
 }
 
 /// Detect if running on hybrid architecture (P+E cores)
+/// Properly checks for Meteor Lake / Alder Lake / Raptor Lake
 fn is_hybrid_architecture() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
-        // Check CPUID for hybrid topology
-        if let Some(_cpuid) = raw_cpuid::CpuId::new().get_feature_info() {
-            // Hybrid bit in CPUID.07H:EDX[bit 15]
-            // For now, use AVX512 as a proxy for modern hybrid architectures
-            return std::arch::is_x86_feature_detected!("avx512f");
+        // Check for Intel hybrid by CPU topology heuristic
+        // Meteor Lake, Alder Lake, Raptor Lake all have asymmetric core counts
+        let total_cpus = num_cpus::get();
+        let physical_cpus = num_cpus::get_physical();
+        
+        // Hybrid architectures often have more logical than physical * 2
+        // due to P-cores having HT and E-cores not having HT
+        // Examples:
+        //   Meteor Lake 165H: 16 logical, 14 physical (6P*2 + 8E + 2LPE)
+        //   Alder Lake i7: 20 logical, 12 physical (8P*2 + 4E)
+        if total_cpus >= 12 && total_cpus != physical_cpus * 2 {
+            return true;
+        }
+        
+        // Also check by inspecting CPUID vendor + model
+        // Intel hybrid starts with 12th gen (Alder Lake, model 0x97, 0x9A)
+        // Meteor Lake is model 0xAA (170)
+        if let Some(info) = raw_cpuid::CpuId::new().get_feature_info() {
+            let family = info.family_id();
+            let model = info.model_id();
+            let ext_model = info.extended_model_id();
+            let full_model = (ext_model << 4) | model;
+            
+            // Intel family 6, models for hybrid architectures
+            if family == 6 && (full_model >= 0x97 || full_model == 0xAA) {
+                return true;
+            }
         }
     }
 
-    // Conservative fallback: assume modern CPUs with many cores might be hybrid
-    num_cpus::get() >= 12
+    false
 }
 
 #[cfg(test)]

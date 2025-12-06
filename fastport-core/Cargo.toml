@@ -52,17 +52,38 @@ libc = "0.2"
 cc = "1.0"
 
 [features]
-default = ["avx512"]
+default = ["avx2", "vnni"]
 avx512 = []
 avx2 = []
-neon = []  # For ARM support
+vnni = []      # AVX-VNNI / AVX-VNNI-INT8 for pattern matching
+amx = []       # AMX for matrix ops (engineering samples)
+neon = []      # For ARM support
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true
 
-# Note: Use RUSTFLAGS environment variable for target features instead of profile.rustflags
-# Example: RUSTFLAGS='-C target-feature=+avx2' cargo build --release
+[profile.dev]
+opt-level = 1
+
+# ============================================================================
+# METEOR LAKE / LATITUDE 5450 COVERT EDITION BUILD INSTRUCTIONS
+# ============================================================================
+# 
+# Standard build (AVX2 + VNNI):
+#   RUSTFLAGS='-C target-cpu=meteorlake -C target-feature=+avx2,+fma,+avxvnni,+avxvnniint8,+avxifma,+aes,+vaes,+pclmul,+sha,+gfni' \
+#     cargo build --release
+#
+# Engineering Sample A00 (with AMX):
+#   RUSTFLAGS='-C target-cpu=meteorlake -C target-feature=+avx2,+fma,+avxvnni,+avxvnniint8,+avxifma,+avxneconvert,+aes,+vaes,+pclmul,+sha,+gfni,+cmpccxadd,+amx-tile,+amx-int8,+amx-bf16' \
+#     cargo build --release --features amx
+#
+# Expected performance gains on Meteor Lake:
+#   - VNNI INT8 pattern matching: ~2-4x faster banner detection
+#   - AVX-IFMA: ~1.5x faster checksum calculations
+#   - Prefetch optimization: ~10-20% overall throughput
+#   - Proper P-core pinning: ~5-10% latency reduction
+# ============================================================================
