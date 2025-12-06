@@ -132,8 +132,37 @@ unsafe fn simd_process_packet_avx2_vnni(packet: &[u8]) -> u32 {
     total_sum.wrapping_add(flag_count)
 }
 
-// Note: AVX-512 code removed - Meteor Lake does not support AVX-512
-// The AVX2+VNNI path provides optimal performance for this architecture
+/// AVX-512 optimized packet checksum (64 bytes at once)
+/// Requires nightly Rust and avx512 feature flag
+/// Note: Meteor Lake does NOT support AVX-512, this is for other platforms
+#[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+#[target_feature(enable = "avx512f,avx512bw,avx512vl")]
+unsafe fn simd_process_packet_avx512(packet: &[u8]) -> u32 {
+    if packet.len() < 64 {
+        return simd_process_packet_scalar(packet);
+    }
+
+    // Load 64 bytes into AVX-512 register
+    let ptr = packet.as_ptr() as *const i32;
+    let data = _mm512_loadu_si512(ptr);
+
+    // Compute checksum using horizontal sum
+    let sum = _mm512_reduce_add_epi32(_mm512_sad_epu8(data, _mm512_setzero_si512())) as u32;
+
+    // Process flags and extract port state
+    let flags_mask = _mm512_set1_epi8(0x12); // SYN-ACK flags
+    let masked = _mm512_and_si512(data, flags_mask);
+    let has_syn_ack = _mm512_test_epi8_mask(masked, masked);
+
+    // Return combined checksum and port state
+    sum.wrapping_add(has_syn_ack.count_ones())
+}
+
+/// Fallback when AVX-512 feature not enabled
+#[cfg(all(target_arch = "x86_64", not(feature = "avx512")))]
+unsafe fn simd_process_packet_avx512(packet: &[u8]) -> u32 {
+    simd_process_packet_avx2(packet)
+}
 
 /// AVX2 fallback packet checksum (32 bytes at once)
 /// Enhanced with better error handling and edge case support
